@@ -1,0 +1,68 @@
+name: Release-plz
+
+on:
+  workflow_dispatch:
+    inputs:
+      live:
+        description: Publish Support Email Resend and create its release
+        required: true
+        default: false
+        type: boolean
+      confirm:
+        description: Type publish when live is enabled
+        required: false
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: support-email-resend-release
+  cancel-in-progress: false
+
+jobs:
+  reject-unconfirmed-live-release:
+    if: ${{ inputs.live && (inputs.confirm != 'publish' || github.ref != 'refs/heads/main') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - run: |
+          echo "Live publication requires confirm=publish and ref=main." >&2
+          exit 1
+
+  dry-run:
+    if: ${{ !inputs.live && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - &checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - &rust
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: 1.94.0
+      - uses: release-plz/action@2eb1d8bcb770b4c48ccfaad919734b38b51958c9 # v0.5.131
+        with:
+          command: release
+          dry_run: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    if: ${{ inputs.live && inputs.confirm == 'publish' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: read
+      id-token: write
+    steps:
+      - *checkout
+      - *rust
+      - uses: release-plz/action@2eb1d8bcb770b4c48ccfaad919734b38b51958c9 # v0.5.131
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
