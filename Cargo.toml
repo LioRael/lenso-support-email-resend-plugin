@@ -2,7 +2,7 @@
 name = "lenso-support-email-resend"
 version = "0.1.0"
 edition = "2024"
-publish = false
+publish = true
 rust-version = "1.94"
 license = "MIT"
 description = "Verified Resend inbound-email adapter for Lenso Support applications."
